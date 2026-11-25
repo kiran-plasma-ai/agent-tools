@@ -1,9 +1,11 @@
 # Reviewed false positives for scripts/leak-scan.sh.
+# NOTE: every line here is a grep -E pattern, comments included — no regex
+# metacharacters in comments.
+#
 # kitty.conf sets kitty's remote_control_password directive to an EMPTY shared
 # secret on purpose — the real gate is auth.py; no credential is stored.
 kitty-debug/kitty\.conf:.*remote_control_password
-# README documents that same empty-secret design ("empty shared secret" in
-# kitty.conf comments is covered above; this covers the prose mention).
+# README prose mentions that same empty-secret design.
 README\.md:.*secret
 # This allowlist necessarily contains the words it allowlists.
 ^\.leakscan-allow:
