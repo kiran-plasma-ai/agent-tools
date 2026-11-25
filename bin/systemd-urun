@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+
+import shlex
+import subprocess
+import sys
+from os import getenv, path
+from shutil import which
+
+
+def run(cmd: list[str]) -> str:
+    """Run command and return stdout."""
+    cmd_str = " ".join(cmd)
+    result = subprocess.run(
+        cmd_str,
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 and result.stderr:
+        print(f"[stderr] {result.stderr}", file=sys.stderr)
+    return result.stdout.strip()
+
+
+def open_cmd(program: str | None, arguments: list[str]) -> None:
+    """Launch program via systemd-run without blocking."""
+    if not program:
+        raise ValueError("No program specified")
+    if not which(program) and not path.exists(program):
+        raise FileNotFoundError(f"Program not found: {program}")
+    
+    cmd_parts = [
+        "/sbin/systemd-run", "-q",
+        "-p", "StandardOutput=null",
+        "-p", "StandardError=null",
+        "--user",
+        "--",
+        program,
+    ] + arguments
+    
+    if getenv("SYSTEMD_URUN_DEBUG"):
+        print(" ".join(shlex.quote(arg) for arg in cmd_parts), file=sys.stderr)
+    
+    # Use synchronous Popen - avoids asyncio event loop shutdown race
+    subprocess.Popen(
+        cmd_parts,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
+def resolve_executable(argument: str) -> str | None:
+    """Resolve executable path."""
+    basename = path.basename(argument)
+    return which(basename, path=path.dirname(argument)) or which(basename)
+
+
+def parse_command(command: str) -> tuple[str, list[str]]:
+    """Parse command string into program and arguments."""
+    parts = shlex.split(command.strip())
+    return parts[0], parts[1:]
+
+
+def get_input() -> tuple[str, list[str]] | None:
+    """Get command from stdin, args, or clipboard."""
+    # Check CLI args first (most explicit)
+    if len(sys.argv) > 1:
+        return sys.argv[1], sys.argv[2:]
+    
+    # Check stdin (treat as single file path, not a command with args)
+    if not sys.stdin.isatty():
+        line = sys.stdin.readline().strip()
+        if line:
+            return line, []
+    
+    # Check clipboard
+    session_type = getenv("XDG_SESSION_TYPE")
+    if session_type == "wayland":
+        cmd = run(["wl-paste"])
+    elif session_type == "x11":
+        cmd = run(["xclip", "-o"])
+    else:
+        return None
+    
+    return parse_command(cmd) if cmd else None
+
+
+def main() -> int:
+    """Main entry point."""
+    result = get_input()
+    
+    if result is None:
+        print("No input command", file=sys.stderr)
+        return 1
+    
+    command, arguments = result
+    if getenv("SYSTEMD_URUN_DEBUG"):
+        print(f"DEBUG systemd-urun: command={command!r}, args={arguments}", file=sys.stderr, flush=True)
+    executable = resolve_executable(command)
+    
+    try:
+        if path.exists(command) and not executable:
+            program = "xdg-open"
+            launch_args = [command]
+        elif executable:
+            program = executable
+            launch_args = arguments
+        else:
+            print(f"Neither file nor executable: {command}", file=sys.stderr)
+            return 1
+        open_cmd(program, launch_args)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

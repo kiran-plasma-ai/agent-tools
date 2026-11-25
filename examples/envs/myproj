@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Example key handler for env 'myproj'. Install as
+# ~/.config/omp-debug/envs/myproj (chmod +x) on the DESKTOP user side, or
+# stamp a fresh one with omp-debug-new-env and edit it.
+#
+# One case per key, fixed commands only. Fail-closed: unknown keys exit 1.
+# Keys run as the desktop user, so systemctl --user, the session bus, and
+# the compositor's CLI all work here — that's the point: the agent user can
+# ask for exactly these actions and nothing else.
+case "${1:-}" in
+  ping) : ;;
+  restart) systemctl --user restart myproj.service ;;
+  logs) journalctl --user -u myproj.service -n 200 --no-pager > /tmp/myproj-logs.txt ;;
+  *) exit 1 ;;
+esac

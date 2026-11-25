@@ -1,0 +1,6 @@
+# Private ops notes never ship (github-manager ground rule 3).
+AGENTS.md
+.agents/
+
+__pycache__/
+*.pyc

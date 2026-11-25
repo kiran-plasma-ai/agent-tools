@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Routes <env> <key> to the registry handler ~/.config/omp-debug/envs/<env>.
+# Per-env activity: /tmp/omp-debug-dispatch-<env>.log
+# Denials (bad/unknown env): /tmp/omp-debug-dispatch.log
+set -u
+env="${1:-}"; key="${2:-}"
+case "$env" in
+  ""|*[!a-z0-9-]*)
+    echo "$(date -Is) DENIED bad env='$env' key='$key'" >> /tmp/omp-debug-dispatch.log
+    exit 1 ;;
+esac
+log="/tmp/omp-debug-dispatch-$env.log"
+echo "$(date -Is) env=$env key=$key" >> "$log"
+handler="$HOME/.config/omp-debug/envs/$env"
+[ -x "$handler" ] || { echo "$(date -Is) DENIED unknown env=$env key=$key" >> /tmp/omp-debug-dispatch.log; exit 1; }
+"$handler" "$key"

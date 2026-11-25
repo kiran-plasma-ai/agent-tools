@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Usage: omp-debug-new-env <env> — stamps a registry handler from template.
+set -euo pipefail
+env="${1:?usage: omp-debug-new-env <env>}"
+case "$env" in ""|*[!a-z0-9-]*) echo "invalid env name" >&2; exit 1;; esac
+h="$HOME/.config/omp-debug/envs/$env"
+[ -e "$h" ] && { echo "env exists: $env" >&2; exit 1; }
+{
+  echo '#!/usr/bin/env bash'
+  echo "# Key handler for env '$env' — one case per key, fixed commands only. Fail-closed."
+  echo 'case "${1:-}" in'
+  echo "  ping) echo \"\$(date -Is) env=$env key=ping ok\" >> /tmp/omp-debug-dispatch-$env.log ;;"
+  echo "  restart) systemctl --user restart $env.service ;;"
+  echo '  *) exit 1 ;;'
+  echo 'esac'
+} > "$h"
+chmod +x "$h"
+echo "env ready: $env"

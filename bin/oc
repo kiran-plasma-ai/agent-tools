@@ -1,0 +1,17 @@
+#!/bin/sh
+# oc — launch opencode in a transient systemd user scope inside
+# development.slice, working directory carried over. The slice caps CPU/IO/
+# memory so a runaway agent can't starve the desktop.
+set -e
+
+: "${GOOGLE_CLOUD_PROJECT:?export GOOGLE_CLOUD_PROJECT (Vertex AI project id)}"
+OPENCODE_BIN="${OPENCODE_BIN:-opencode}"
+
+exec systemd-run --user -E PATH="$PATH" \
+  -E HOME="$HOME" \
+  -E GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json" \
+  -E GOOGLE_CLOUD_PROJECT="$GOOGLE_CLOUD_PROJECT" \
+  -E VERTEX_LOCATION="${VERTEX_LOCATION:-global}" \
+  -E OPENCODE_DISABLE_DEFAULT_PLUGINS=true \
+  --working-directory="$PWD" --pty --slice development.slice \
+  "$OPENCODE_BIN" "$@"

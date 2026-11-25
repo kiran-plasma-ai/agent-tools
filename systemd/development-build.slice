@@ -1,0 +1,6 @@
+[Slice]
+CPUWeight=200
+IOWeight=10
+MemoryHigh=16G
+AllowedCPUs=4-8
+CPUSchedulingPriority=1

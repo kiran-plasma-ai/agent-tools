@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# omp-debug-trigger <key>
+# Fires <key> in the current session's environment (OMP_DEBUG, set by
+# `nodeshell <env>`). The DCS sequence goes to the pane tty, bridged by
+# machinectl back to the debug kitty pane this session was started from.
+# Security boundary is on the desktop-user side: kitty auth module + env
+# key handler. This script runs as the agent user and can do nothing by
+# itself — the desktop side decides which keys exist.
+set -euo pipefail
+key="${1:?usage: omp-debug-trigger <key>}"
+case "$key" in ""|*[!a-z0-9-]*) echo "omp-debug-trigger: invalid key '$key'" >&2; exit 1;; esac
+env="${OMP_DEBUG:-}"
+case "$env" in ""|*[!a-z0-9-]*) echo "omp-debug-trigger: no environment (use: nodeshell <env>)" >&2; exit 1;; esac
+
+# The dispatcher lives on the DESKTOP user's side, so $HOME here (the agent
+# user's) is the wrong base. Set DESKTOP_HOME once in
+# ~/.config/omp-debug/config on the agent side.
+if [ -f "$HOME/.config/omp-debug/config" ]; then
+  # shellcheck disable=SC1091
+  . "$HOME/.config/omp-debug/config"
+fi
+dispatch="${OMP_DEBUG_DISPATCH:-${DESKTOP_HOME:+$DESKTOP_HOME/.bin/omp-debug-dispatch}}"
+[ -n "$dispatch" ] || {
+  echo "omp-debug-trigger: set DESKTOP_HOME in ~/.config/omp-debug/config" >&2
+  exit 1
+}
+
+# version [0,49,2] matches kitty 0.49.x; bump on kitty upgrade
+# (a version greater than the instance's is rejected)
+# Transport: under tmux, the pane's pty is the target (a tool's own
+# pty/stdout never reaches the terminal), and the DCS MUST be wrapped in the
+# tmux passthrough form — raw DCS is silently dropped by tmux (verified).
+# Outside tmux, /dev/tty is the kitty pane directly and raw DCS is fine.
+if [ -n "${TMUX_PANE:-}" ]; then
+  target="$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}')"
+  {
+    printf '\033Ptmux;\033\033\033P@kitty-cmd{"cmd":"launch","version":[0,49,2],"no_response":true,"payload":{"type":"background","args":["%s","%s","%s"]}}\033\033\\\033\\' "$dispatch" "$env" "$key"
+  } > "$target"
+else
+  {
+    printf '\033P@kitty-cmd{"cmd":"launch","version":[0,49,2],"no_response":true,"payload":{"type":"background","args":["%s","%s","%s"]}}\033\\' "$dispatch" "$env" "$key"
+  } > /dev/tty
+fi

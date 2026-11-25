@@ -1,0 +1,8 @@
+#!/bin/sh
+# usage: omp-debug-kitty [env] — launch the omp debug kitty (the only kitty
+# with remote control enabled); with env, its window runs nodeshell <env>.
+if [ $# -gt 0 ]; then
+  exec kitty --config "$HOME/.config/kitty-debug/kitty.conf" "$HOME/.bin/nodeshell" "$@"
+else
+  exec kitty --config "$HOME/.config/kitty-debug/kitty.conf"
+fi
