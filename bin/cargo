@@ -1,0 +1,25 @@
+#!/bin/sh
+# Run cargo in a transient systemd user unit (development.slice).
+# -E NAME (no =value) imports the variable from the calling environment;
+# whitelist what cargo, rustc and build scripts actually read.
+ARGS=""
+for name in $(env | cut -d= -f1); do
+    case "$name" in
+        # Set explicitly below or meaningless inside the unit.
+        PATH|HOME|SHELL|PWD|OLDPWD|SHLVL|_|SYSTEMD_EXEC_PID) ;;
+        # Cargo/rustc/rustup, build-script toolchain, PyO3/Python, proxies/certs.
+        CARGO*|RUSTC*|RUSTFLAGS|RUSTDOCFLAGS|RUSTUP*|PYO3_*|PYTHON* \
+        |CC|CXX|LD|AR|RANLIB|PKG_CONFIG* \
+        |HTTP_*|HTTPS_*|http_*|https_*|NO_*|SSL_CERT* \
+        |TERM|COLORTERM|CI|NIX_* \
+        |LD_LIBRARY_PATH|LIBRARY_PATH|CPATH|C_INCLUDE_PATH|CPLUS_INCLUDE_PATH)
+            ARGS="$ARGS -E $name" ;;
+    esac
+done
+# shellcheck disable=SC2086
+exec systemd-run -q --user -E PATH="${PATH}" \
+  -E HOME="${HOME}" \
+  -E SHELL=/bin/bash \
+  $ARGS \
+  --working-directory="${PWD}" --pty --slice development.slice \
+  /usr/bin/cargo "$@"

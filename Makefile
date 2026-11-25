@@ -2,7 +2,8 @@
 # shellcheck runs when installed; syntax checks always run.
 
 SH_FILES := install.sh bin/nodeshell bin/omp-debug-trigger bin/omp-debug-dispatch \
-            bin/omp-debug-kitty bin/omp-debug-new-env examples/envs/myproj
+            bin/omp-debug-kitty bin/omp-debug-new-env bin/git bin/cargo \
+            examples/envs/myproj
 PY_FILES := bin/mdrecall bin/systemd-urun kitty-debug/auth.py
 
 .PHONY: check

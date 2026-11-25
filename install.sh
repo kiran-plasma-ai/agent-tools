@@ -16,7 +16,7 @@ install -m 0755 bin/nodeshell bin/omp-debug-dispatch bin/omp-debug-kitty \
   bin/omp-debug-new-env "$HOME/.bin/"
 
 # General-purpose utilities.
-install -m 0755 bin/mdrecall bin/systemd-urun "$HOME/.local/bin/"
+install -m 0755 bin/mdrecall bin/systemd-urun bin/git bin/cargo "$HOME/.local/bin/"
 
 # Slices + the per-project agent session template.
 install -m 0644 systemd/gg@.service systemd/development.slice \

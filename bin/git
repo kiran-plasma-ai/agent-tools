@@ -1,0 +1,162 @@
+#!/bin/bash
+# Git Safety Wrapper - Intercepts git commands before /usr/bin/git
+# Install: cp scripts/git-wrapper ~/.local/bin/git
+# Ensure ~/.local/bin is in PATH before /usr/bin
+
+# Path to real git
+REAL_GIT="/usr/bin/git"
+
+# Safety check functions
+check_other_agents() {
+    local files="$1"
+    local conflicts=""
+    
+    for file in $files; do
+        # Check if file exists and was modified by others
+        if [ -f "$file" ]; then
+            local other_authors=$(git log -3 --format="%an" -- "$file" 2>/dev/null | grep -v "$(git config user.name 2>/dev/null)" | head -1)
+            if [ -n "$other_authors" ]; then
+                local last_author=$(git log -1 --format="%an" -- "$file" 2>/dev/null)
+                conflicts="$conflicts  - $file (last: $last_author)\n"
+            fi
+        fi
+    done
+    
+    if [ -n "$conflicts" ]; then
+        echo "⚠️  WARNING: These files were recently modified by other agents:"
+        echo -e "$conflicts"
+        return 1
+    fi
+    return 0
+}
+
+# Main command interception
+case "$1" in
+    reset)
+        echo "🛑 BLOCKED: 'git reset' is dangerous and can destroy other agents' work"
+        echo ""
+        echo "What would be affected:"
+        $REAL_GIT diff --stat HEAD 2>/dev/null | head -20 || echo "  (cannot determine - not in a git repo)"
+        echo ""
+        echo "If you absolutely must reset:"
+        echo "  1. Check AGENTS.md for who is working on what"
+        echo "  2. Use the full path: $REAL_GIT reset"
+        echo "  3. Better: Use 'git revert' for specific commits"
+        exit 1
+        ;;
+        
+    checkout)
+        # Block 'git checkout HEAD -- <files>' which reverts files
+        if [ "$2" = "HEAD" ] && [ "$3" = "--" ]; then
+            shift 3
+            echo "🛑 BLOCKED: 'git checkout HEAD --' reverts files to HEAD"
+            echo "This DESTROYS changes - potentially other agents' work!"
+            echo ""
+            echo "Files that would be reverted:"
+            for file in "$@"; do
+                echo "  - $file"
+            done
+            echo ""
+            echo "To see what would be lost:"
+            echo "  $REAL_GIT diff HEAD -- $@"
+            echo ""
+            echo "Better alternatives:"
+            echo "  - Edit files manually"
+            echo "  - Use 'git checkout -p HEAD -- <file>' for interactive"
+            exit 1
+        fi
+        
+        # Check for 'git checkout <file>' (without HEAD) - warns if other agents modified
+        # This handles: git checkout file.txt, git checkout -- file.txt
+        if [ $# -ge 2 ] && [ "$2" != "-b" ] && [ "$2" != "-B" ] && [ "$2" != "HEAD" ] && [ "$2" != "--track" ] && [ "$2" != "-" ]; then
+            # Collect files (skip options like --)
+            checkout_files=""
+            for arg in "${@:2}"; do
+                # Skip options starting with -
+                if [[ "$arg" != -* ]]; then
+                    checkout_files="$checkout_files $arg"
+                fi
+            done
+            
+            # Check if any files were modified by other agents
+            if [ -n "$checkout_files" ]; then
+                conflicts=""
+                for file in $checkout_files; do
+                    # Check if file exists in git and was modified by others
+                    if [ -f "$file" ]; then
+                        other_authors=$($REAL_GIT log -3 --format="%an" -- "$file" 2>/dev/null | grep -v "$($REAL_GIT config user.name 2>/dev/null)" | head -1)
+                        if [ -n "$other_authors" ]; then
+                            last_author=$($REAL_GIT log -1 --format="%an" -- "$file" 2>/dev/null)
+                            conflicts="$conflicts  - $file (last: $last_author)\n"
+                        fi
+                    fi
+                done
+                
+                if [ -n "$conflicts" ]; then
+                    echo "⚠️  WARNING: You're about to checkout files that were recently modified by other agents:"
+                    echo -e "$conflicts"
+                    echo ""
+                    echo "This may undo their work! Consider:"
+                    echo "  - Checking AGENTS.md to see who's working on these files"
+                    echo "  - Coordinating with the other agent first"
+                    echo "  - Using 'git stash' to save your changes instead"
+                    echo ""
+                    read -p "Continue with checkout? (type 'checkout' to proceed): " confirm
+                    if [ "$confirm" != "checkout" ]; then
+                        echo "❌ Checkout aborted"
+                        exit 1
+                    fi
+                fi
+            fi
+        fi
+        
+        exec $REAL_GIT "$@"
+        ;;
+        
+    clean)
+        echo "🛑 BLOCKED: 'git clean' deletes untracked files"
+        echo "Some agents may have uncommitted work!"
+        echo ""
+        echo "To see what would be deleted:"
+        echo "  $REAL_GIT clean -n"
+        echo ""
+        echo "If you must clean:"
+        echo "  1. Use '$REAL_GIT clean -n' to preview"
+        echo "  2. Delete files manually with 'rm'"
+        exit 1
+        ;;
+        
+    commit)
+        # Check if we're reverting changes
+        if [ "$2" = "--amend" ]; then
+            echo "⚠️  WARNING: 'git commit --amend' rewrites the last commit"
+            echo "If another agent has pulled that commit, this causes issues!"
+            echo ""
+            read -p "Continue? (type 'amend' to proceed): " confirm
+            if [ "$confirm" != "amend" ]; then
+                echo "❌ Aborted"
+                exit 1
+            fi
+        fi
+        
+        # Check for files modified by other agents
+        if ! $REAL_GIT diff --cached --quiet 2>/dev/null; then
+            staged_files=$($REAL_GIT diff --cached --name-only 2>/dev/null)
+            if ! check_other_agents "$staged_files"; then
+                echo ""
+                read -p "Continue anyway? (type 'force' to override): " confirm
+                if [ "$confirm" != "force" ]; then
+                    echo "❌ Commit aborted"
+                    exit 1
+                fi
+            fi
+        fi
+        
+        exec $REAL_GIT "$@"
+        ;;
+        
+    # Pass through all other commands to real git
+    *)
+        exec $REAL_GIT "$@"
+        ;;
+esac

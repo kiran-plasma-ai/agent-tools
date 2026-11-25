@@ -50,6 +50,8 @@ flowchart LR
 | `kitty-debug/` | desktop | kitty config + `auth.py`: remote control allows exactly one command shape — background launch of the dispatcher with a registered env and a `[a-z0-9-]` key. |
 | `mdrecall <terms…>` | both | Rank existing markdown by topic coverage (frontmatter, headings, body; accent-insensitive) so agents update notes instead of duplicating them. |
 | `systemd-urun` | both | Launch a program or open a file via `systemd-run --user` from args, stdin, or clipboard. |
+| `git` (wrapper) | both | Safety shim over `/usr/bin/git` for multi-agent worktrees: blocks `reset`, `clean`, and `checkout HEAD --`; warns (with confirmation) when a commit/checkout touches files recently modified by other authors. Everything else passes through. |
+| `cargo` (wrapper) | both | Runs cargo in a transient scope inside `development.slice`, forwarding a whitelist of toolchain env vars (`CARGO*`, `RUSTFLAGS`, `PKG_CONFIG*`, proxies, …). Builds can't starve the desktop. |
 
 ## Reproduce
 
