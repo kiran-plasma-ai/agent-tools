@@ -4,8 +4,10 @@
 #
 # kitty.conf sets kitty's remote_control_password directive to an EMPTY shared
 # secret on purpose — the real gate is auth.py; no credential is stored.
-kitty-debug/kitty\.conf:.*remote_control_password
+kitty-debug/kitty\.conf:.*(allow_remote_control password|remote_control_password)
 # README prose mentions that same empty-secret design.
 README\.md:.*secret
+# gg@env.service in the README diagram is a systemd unit name, not an e-mail.
+README\.md:.*gg@env\.service
 # This allowlist necessarily contains the words it allowlists.
 ^\.leakscan-allow:
