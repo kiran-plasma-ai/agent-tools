@@ -10,6 +10,11 @@ Environment="PATH=%h/.kimi-code/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="SESSION=%i"
 ExecStart=/bin/bash -c 'AGENT_CMD="${AGENT_CMD:-$HOME/.kimi-code/bin/kimi -C}"; mkdir -p "$HOME/$SESSION"; cd "$HOME/$SESSION" && /usr/bin/tmux kill-session -t "$SESSION" 2>/dev/null; /usr/bin/tmux new-session -d -s "$SESSION" -c "$HOME/$SESSION" -e OMP_DEBUG="$SESSION" "$AGENT_CMD"'
 ExecStop=/usr/bin/tmux kill-session -t %i
+# KillMode=none is deliberate: all gg@ instances share one tmux server, and
+# the server process lives in the cgroup of whichever instance started it
+# first. The default control-group mode would kill that shared server (and
+# every other session) when that instance stops. ExecStop does the cleanup.
+# systemd-analyze flags this as deprecated; accepted trade-off.
 KillMode=none
 Slice=development.slice
 
