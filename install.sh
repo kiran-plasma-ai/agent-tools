@@ -15,9 +15,8 @@ mkdir -p "$HOME/.bin" "$HOME/.local/bin" "$HOME/.config/systemd/user" \
 install -m 0755 bin/nodeshell bin/omp-debug-dispatch bin/omp-debug-kitty \
   bin/omp-debug-new-env "$HOME/.bin/"
 
-# General-purpose agent wrappers and utilities.
-install -m 0755 bin/mdrecall bin/systemd-urun bin/opencode-send bin/oc \
-  bin/kimi-code bin/gg "$HOME/.local/bin/"
+# General-purpose utilities.
+install -m 0755 bin/mdrecall bin/systemd-urun "$HOME/.local/bin/"
 
 # Slices + the per-project agent session template.
 install -m 0644 systemd/gg@.service systemd/development.slice \

@@ -8,9 +8,9 @@
 **Wrappers and bins for running coding agents as a separate user — slice-capped systemd sessions, a machinectl switching shell, and a fail-closed debug channel that lets the agent poke the desktop without ever holding desktop privileges.**
 
 A dotfile-style collection of the small tools I use daily to run AI coding
-agents (kimi-cli, opencode, …) under a dedicated unprivileged user on
-Arch/Linux. Includes the scripts in `bin/`, the systemd slices and session
-template in `systemd/`, and the gated kitty config in `kitty-debug/`.
+agents under a dedicated unprivileged user on Arch/Linux. Includes the
+scripts in `bin/`, the systemd slices and session template in `systemd/`,
+and the gated kitty config in `kitty-debug/`.
 
 ## The model
 
@@ -43,17 +43,13 @@ flowchart LR
 | `nodeshell [env]` | desktop | `machinectl shell` into the agent user, forwarding display/terminal env. With `env`: attaches to that project's `gg` channel and exports `OMP_DEBUG`. |
 | `gg@.service` | desktop | systemd user template: one tmux session per project dir, `OMP_DEBUG` set, capped by `development.slice`. `systemctl --user enable --now gg@myproj`. |
 | `development.slice` / `development-build.slice` | desktop | CPU weight, IO weight, memory-high and `AllowedCPUs` caps for agent sessions and builds. Tune to your hardware. |
-| `oc` | agent | Launch opencode in a transient scope inside `development.slice`, cwd carried over. |
-| `kimi-code` | agent | Launch kimi-cli in a named scope inside `development.slice`; session named after the project dir, re-running resumes it. |
 | `omp-debug-kitty [env]` | desktop | Launch the dedicated debug kitty (the only instance with remote control on). With `env`, its window runs `nodeshell env`. |
 | `omp-debug-trigger <key>` | agent | Fire a key for the current env. Emits a kitty `@kitty-cmd` DCS to the pane tty (tmux-passthrough-wrapped under tmux). |
 | `omp-debug-dispatch <env> <key>` | desktop | Route the key to `~/.config/omp-debug/envs/<env>`. Logs per-env to `/tmp/omp-debug-dispatch-<env>.log`; denials to `/tmp/omp-debug-dispatch.log`. |
 | `omp-debug-new-env <env>` | desktop | Stamp a new env handler (`ping`, `restart` template). Edit in place; see `examples/envs/myproj`. |
 | `kitty-debug/` | desktop | kitty config + `auth.py`: remote control allows exactly one command shape — background launch of the dispatcher with a registered env and a `[a-z0-9-]` key. |
-| `gg` | both | Thin launcher for a `gg-core` checkout (`GG_CORE_DIR` or `~/gg-core`); used by `nodeshell env` to attach to a project's channel. Requires gg-core, not included here. |
 | `mdrecall <terms…>` | both | Rank existing markdown by topic coverage (frontmatter, headings, body; accent-insensitive) so agents update notes instead of duplicating them. |
 | `systemd-urun` | both | Launch a program or open a file via `systemd-run --user` from args, stdin, or clipboard. |
-| `opencode-send` | agent | Send a command into a running opencode tmux session/window. |
 
 ## Reproduce
 
@@ -90,10 +86,10 @@ omp-debug-trigger ping   # desktop: tail /tmp/omp-debug-dispatch-<env>.log
 ## Scope
 
 These are personal dotfiles, published as-is: Linux + systemd + kitty +
-tmux assumed, no portability layer, no tests. `gg` requires a `gg-core`
-checkout that is not part of this repo. `oc` expects Vertex AI credentials
-(`GOOGLE_CLOUD_PROJECT`, gcloud ADC); adapt or delete the `-E` lines for
-other providers.
+tmux assumed, no portability layer, no tests. `nodeshell <env>` and
+`gg@.service` attach to a project's `gg` channel — `gg`/`gg-core` is a
+separate project with its own repo; without it, plain `nodeshell` and the
+`AGENT_CMD` override on `gg@.service` still work.
 
 ## License
 
