@@ -52,7 +52,12 @@ def open_cmd(program: str | None, arguments: list[str]) -> None:
 def resolve_executable(argument: str) -> str | None:
     """Resolve executable path."""
     basename = path.basename(argument)
-    return which(basename, path=path.dirname(argument)) or which(basename)
+    dirname = path.dirname(argument)
+    if dirname:
+        found = which(basename, path=dirname)
+        if found:
+            return found
+    return which(basename)
 
 
 def parse_command(command: str) -> tuple[str, list[str]]:

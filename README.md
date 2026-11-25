@@ -40,12 +40,12 @@ flowchart LR
 
 | Tool | Side | What it does |
 |---|---|---|
-| `nodeshell [env]` | desktop | `machinectl shell` into the agent user, forwarding display/terminal env. With `env`: attaches to that project's `gg` channel and exports `OMP_DEBUG`. |
+| `nodeshell [env]` | desktop | `machinectl shell` into the agent user, forwarding display/terminal env (empty vars tolerated). With `env`: attaches to that project's `gg` channel and exports `OMP_DEBUG`; without `env`, a pre-set `OMP_DEBUG` is inherited. |
 | `gg@.service` | desktop | systemd user template: one tmux session per project dir, `OMP_DEBUG` set, capped by `development.slice`. `systemctl --user enable --now gg@myproj`. |
 | `development.slice` / `development-build.slice` | desktop | CPU weight, IO weight, memory-high and `AllowedCPUs` caps for agent sessions and builds. Tune to your hardware. |
 | `omp-debug-kitty [env]` | desktop | Launch the dedicated debug kitty (the only instance with remote control on). With `env`, its window runs `nodeshell env`. |
 | `omp-debug-trigger <key>` | agent | Fire a key for the current env. Emits a kitty `@kitty-cmd` DCS to the pane tty (tmux-passthrough-wrapped under tmux). |
-| `omp-debug-dispatch <env> <key>` | desktop | Route the key to `~/.config/omp-debug/envs/<env>`. Logs per-env to `/tmp/omp-debug-dispatch-<env>.log`; denials to `/tmp/omp-debug-dispatch.log`. |
+| `omp-debug-dispatch <env> <key>` | desktop | Route the key to `~/.config/omp-debug/envs/<env>`. Logs per-env to `/run/user/$UID/omp-debug/dispatch-<env>.log` (user-private runtime dir, not `/tmp`); denials to `dispatch.log` in the same dir. |
 | `omp-debug-new-env <env>` | desktop | Stamp a new env handler (`ping`, `restart` template). Edit in place; see `examples/envs/myproj`. |
 | `kitty-debug/` | desktop | kitty config + `auth.py`: remote control allows exactly one command shape — background launch of the dispatcher with a registered env and a `[a-z0-9-]` key. |
 | `mdrecall <terms…>` | both | Rank existing markdown by topic coverage (frontmatter, headings, body; accent-insensitive) so agents update notes instead of duplicating them. |
@@ -66,7 +66,7 @@ Then follow the printed agent-side steps (install `omp-debug-trigger`, set
 Smoke test from inside a `nodeshell <env>` session:
 
 ```sh
-omp-debug-trigger ping   # desktop: tail /tmp/omp-debug-dispatch-<env>.log
+omp-debug-trigger ping   # desktop: tail /run/user/$(id -u)/omp-debug/dispatch-<env>.log
 ```
 
 ## Operational notes
@@ -75,6 +75,15 @@ omp-debug-trigger ping   # desktop: tail /tmp/omp-debug-dispatch-<env>.log
   user; the security boundary is entirely desktop-side (`auth.py` +
   per-env handlers). Handlers are fixed-command case statements — never
   pass the key through to a shell.
+- **Fail-closed, verified in kitty source.** If `auth.py` is missing or
+  fails to load, kitty substitutes a checker that denies everything
+  (`is_cmd_allowed_loader` → `CMDChecker.__call__ → False`,
+  `kitty/remote_control.py`, verified on 0.51.1). A broken gate means no
+  remote control, never open remote control.
+- **Dispatcher logs stay off `/tmp`.** They live in `/run/user/$UID` so the
+  agent user cannot pre-create symlinks that turn desktop-side log appends
+  into file writes. Handler authors: outputs meant for the agent (like the
+  example's `logs` key) are the one intentional exception.
 - **kitty version pin.** The trigger hardcodes `"version":[0,49,2]` in the
   DCS; kitty rejects versions newer than itself. Bump on kitty upgrades.
 - **tmux drops raw DCS.** Under tmux the sequence must be wrapped in the
@@ -86,7 +95,8 @@ omp-debug-trigger ping   # desktop: tail /tmp/omp-debug-dispatch-<env>.log
 ## Scope
 
 These are personal dotfiles, published as-is: Linux + systemd + kitty +
-tmux assumed, no portability layer, no tests. `nodeshell <env>` and
+tmux assumed, no portability layer. `make check` runs syntax checks on all
+shell/python (plus shellcheck when installed). `nodeshell <env>` and
 `gg@.service` attach to a project's `gg` channel — `gg`/`gg-core` is a
 separate project with its own repo; without it, plain `nodeshell` and the
 `AGENT_CMD` override on `gg@.service` still work.

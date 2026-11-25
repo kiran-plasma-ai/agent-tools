@@ -5,7 +5,10 @@ Description=gg-core session for %i
 Type=oneshot
 RemainAfterExit=yes
 Environment="PATH=%h/.kimi-code/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/bin/bash -c 'TMUX_SESSION=%i; AGENT_CMD="${AGENT_CMD:-%h/.kimi-code/bin/kimi -C}"; mkdir -p "%h/%i"; cd "%h/%i" && /usr/bin/tmux kill-session -t "$TMUX_SESSION" 2>/dev/null; /usr/bin/tmux new-session -d -s "$TMUX_SESSION" -c "%h/%i" -e OMP_DEBUG="$TMUX_SESSION" "$AGENT_CMD"'
+# %i reaches the shell only via $SESSION (Environment= is specifier-expanded
+# but not shell-parsed) — never interpolate %i into bash -c directly.
+Environment="SESSION=%i"
+ExecStart=/bin/bash -c 'AGENT_CMD="${AGENT_CMD:-$HOME/.kimi-code/bin/kimi -C}"; mkdir -p "$HOME/$SESSION"; cd "$HOME/$SESSION" && /usr/bin/tmux kill-session -t "$SESSION" 2>/dev/null; /usr/bin/tmux new-session -d -s "$SESSION" -c "$HOME/$SESSION" -e OMP_DEBUG="$SESSION" "$AGENT_CMD"'
 ExecStop=/usr/bin/tmux kill-session -t %i
 KillMode=none
 Slice=development.slice

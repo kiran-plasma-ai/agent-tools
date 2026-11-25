@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 # Routes <env> <key> to the registry handler ~/.config/omp-debug/envs/<env>.
-# Per-env activity: /tmp/omp-debug-dispatch-<env>.log
-# Denials (bad/unknown env): /tmp/omp-debug-dispatch.log
+# Per-env activity: /run/user/$UID/omp-debug/dispatch-<env>.log
+# Denials (bad/unknown env): /run/user/$UID/omp-debug/dispatch.log
+# Logs live in the user-private runtime dir, NOT /tmp: this script runs as
+# the desktop user while the agent user is the potential adversary, and a
+# pre-created /tmp symlink would turn the log append into a write primitive.
 set -u
 env="${1:-}"; key="${2:-}"
+
+logdir="/run/user/$(id -u)/omp-debug"
+mkdir -p "$logdir" && chmod 700 "$logdir"
+
 case "$env" in
   ""|*[!a-z0-9-]*)
-    echo "$(date -Is) DENIED bad env='$env' key='$key'" >> /tmp/omp-debug-dispatch.log
+    echo "$(date -Is) DENIED bad env='$env' key='$key'" >> "$logdir/dispatch.log"
     exit 1 ;;
 esac
-log="/tmp/omp-debug-dispatch-$env.log"
+log="$logdir/dispatch-$env.log"
 echo "$(date -Is) env=$env key=$key" >> "$log"
 handler="$HOME/.config/omp-debug/envs/$env"
-[ -x "$handler" ] || { echo "$(date -Is) DENIED unknown env=$env key=$key" >> /tmp/omp-debug-dispatch.log; exit 1; }
+[ -x "$handler" ] || { echo "$(date -Is) DENIED unknown env=$env key=$key" >> "$logdir/dispatch.log"; exit 1; }
 "$handler" "$key"

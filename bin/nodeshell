@@ -1,9 +1,10 @@
 #!/bin/sh
 # usage: nodeshell [env] — enter a shell as the agent user via machinectl.
 # With env: attaches to the project's gg channel and exports OMP_DEBUG for
-# omp-debug-trigger. Target user defaults to "node"; override with
-# NODESHELL_USER. Display/terminal env vars are forwarded so GUI and
-# terminal apps keep working inside the shell.
+# omp-debug-trigger. Without an argument, a pre-set OMP_DEBUG is inherited
+# (re-enters the current env). Target user defaults to "node"; override with
+# NODESHELL_USER. Display/terminal env vars are forwarded (empty when unset)
+# so GUI and terminal apps keep working inside the shell.
 set -u
 
 target="${NODESHELL_USER:-node}"
@@ -22,19 +23,19 @@ fi
 
 if [ -n "$env_name" ]; then
   exec machinectl shell \
-    --setenv=DISPLAY="$DISPLAY" \
-    --setenv=WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
-    --setenv=XDG_SESSION_TYPE="$XDG_SESSION_TYPE" \
-    --setenv=TERM="$TERM" \
-    --setenv=TERM_PROGRAM="$TERM_PROGRAM" \
+    --setenv=DISPLAY="${DISPLAY:-}" \
+    --setenv=WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+    --setenv=XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-}" \
+    --setenv=TERM="${TERM:-}" \
+    --setenv=TERM_PROGRAM="${TERM_PROGRAM:-}" \
     --setenv=OMP_DEBUG="$env_name" \
     "$target@" /bin/zsh -c "gg connect $env_name"
 else
   exec machinectl shell \
-    --setenv=DISPLAY="$DISPLAY" \
-    --setenv=WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
-    --setenv=XDG_SESSION_TYPE="$XDG_SESSION_TYPE" \
-    --setenv=TERM="$TERM" \
-    --setenv=TERM_PROGRAM="$TERM_PROGRAM" \
+    --setenv=DISPLAY="${DISPLAY:-}" \
+    --setenv=WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+    --setenv=XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-}" \
+    --setenv=TERM="${TERM:-}" \
+    --setenv=TERM_PROGRAM="${TERM_PROGRAM:-}" \
     "$target@"
 fi

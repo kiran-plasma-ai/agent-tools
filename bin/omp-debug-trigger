@@ -14,7 +14,9 @@ case "$env" in ""|*[!a-z0-9-]*) echo "omp-debug-trigger: no environment (use: no
 
 # The dispatcher lives on the DESKTOP user's side, so $HOME here (the agent
 # user's) is the wrong base. Set DESKTOP_HOME once in
-# ~/.config/omp-debug/config on the agent side.
+# ~/.config/omp-debug/config on the agent side. Keep it free of double
+# quotes: the path is interpolated into the DCS JSON below, and a quote
+# breaks the payload (fails closed — kitty's auth gate rejects it).
 if [ -f "$HOME/.config/omp-debug/config" ]; then
   # shellcheck disable=SC1091
   . "$HOME/.config/omp-debug/config"

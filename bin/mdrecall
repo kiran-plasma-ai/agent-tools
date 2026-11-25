@@ -9,6 +9,9 @@ Usage:
 Scores accent-insensitively by token match in: frontmatter title/description/tags,
 headings, filename, and body. It is a candidate finder, not a decision maker:
 read the top hits and decide update-vs-new.
+
+Limitation: only inline frontmatter tags (`tags: a, b`) are parsed; the YAML
+list form (`tags:` followed by `- a` lines) is ignored.
 """
 import argparse
 import json

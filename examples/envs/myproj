@@ -10,6 +10,8 @@
 case "${1:-}" in
   ping) : ;;
   restart) systemctl --user restart myproj.service ;;
+  # logs is intentionally world-readable output for the agent user to fetch;
+  # the dispatcher's own logs stay in /run/user/$UID (see omp-debug-dispatch).
   logs) journalctl --user -u myproj.service -n 200 --no-pager > /tmp/myproj-logs.txt ;;
   *) exit 1 ;;
 esac

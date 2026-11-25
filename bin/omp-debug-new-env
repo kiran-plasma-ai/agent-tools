@@ -9,7 +9,7 @@ h="$HOME/.config/omp-debug/envs/$env"
   echo '#!/usr/bin/env bash'
   echo "# Key handler for env '$env' — one case per key, fixed commands only. Fail-closed."
   echo 'case "${1:-}" in'
-  echo "  ping) echo \"\$(date -Is) env=$env key=ping ok\" >> /tmp/omp-debug-dispatch-$env.log ;;"
+  echo "  ping) echo \"\$(date -Is) env=$env key=ping ok\" >> /run/user/\$(id -u)/omp-debug/dispatch-$env.log ;;"
   echo "  restart) systemctl --user restart $env.service ;;"
   echo '  *) exit 1 ;;'
   echo 'esac'
